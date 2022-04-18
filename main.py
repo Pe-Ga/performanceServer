@@ -1,55 +1,26 @@
 import urllib.request
-import csv
+
 import time
+import os.path
+from start_time import read_start_time_from_file, valid_stime, get_local_time
+from send_request import send_request_to_server
 
-# Parse user input form integer -> string
-# user_input = str(input("Enter unix epochtime: "))
-
-user_input = "1649156500"
-
-with urllib.request.urlopen("http://127.0.0.1:8001/getdata?time=" ) as response:
-    response = [line.decode('utf-8') for line in response.readlines()]
-    reader = csv.DictReader(response, delimiter='|')
-
-    epoch_time = int(user_input)
-    user_input = time.strftime('%Y-%m-%dT%H-%M-%S', time.localtime(epoch_time))
-
-    f = open(user_input + ".json", "w")
-    f.write('{\n')
-    f.write('\t"PerformanceData":[\n')
-
-    is_first_line = True
-
-    for row in reader:
-        epoch_time = row['Timestamp']
-        epoch_time = int(epoch_time)
-        starttime = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(epoch_time / 1000000))
-        duration = row['Duration']
-        key1 = row['Key']
-        value = '"value":{'
-        is_first_item = True
+path = 'C:\\Users\\gamsj\\PycharmProjects\\performanceServer\\start_time.txt'
 
 
-        dict_lst = row.items()
-        lst = list(dict_lst)
-        sublst = lst[3:]
-
-        #for key, val_of_key in sublst:
-        for key, val_of_key in list(row.items())[3:]:
-            if key != "" and val_of_key is not None:
-                if not is_first_item:
-                    value += ','
-                value += '\n\t\t\t\t"'+ key + '"' + ':' + val_of_key
-                is_first_item = False
-        value += "\n\t\t\t}"
+if os.path.exists(path) is True:
+    request_input = read_start_time_from_file() + 300                 # Read from text file add 5 min / 300 seconds
+    request_input = str(request_input)
+    send_request_to_server(request_input)                   # Send request to server
+else:
+    alt_start_time = valid_stime(int(get_local_time()))
+    alt_start_time -= 900                                   # Current time - 15 min
+    alt_start_time = str(alt_start_time)                    # Convert back to string for server request
+    send_request_to_server(alt_start_time)                  # Send request to server
 
 
-        if is_first_line:
-            is_first_line = False
-        else:
-            f.write(',\n')
-        f.write(
-            '\t\t{\n\t\t\t"starttime":"' + starttime + '",\n\t\t\t"duration":' + duration + ',\n\t\t\t"key":{\n\t\t\t\t"key":"' + key1 + '"\n\t\t\t},\n\t\t\t' + value + '\n\t\t}')
 
-    f.write('\n\t]\n}\n')
-    f.close()
+# write new s_time to text file
+
+with open('start_time.txt', 'w') as file:
+    file.write("write new start time from last slice")

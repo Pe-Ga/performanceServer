@@ -1,26 +1,40 @@
+from functions import *
 import urllib.request
-
-import time
-import os.path
-from start_time import read_start_time_from_file, valid_stime, get_local_time
-from send_request import send_request_to_server
-
-path = 'C:\\Users\\gamsj\\PycharmProjects\\performanceServer\\start_time.txt'
+import urllib.error
 
 
-if os.path.exists(path) is True:
-    request_input = read_start_time_from_file() + 300                 # Read from text file add 5 min / 300 seconds
-    request_input = str(request_input)
-    send_request_to_server(request_input)                   # Send request to server
+path = 'start_time.txt'
+
+if open_and_read(path) is True:
+    s_time = read_start_time_from_file(path)
 else:
-    alt_start_time = valid_stime(int(get_local_time()))
-    alt_start_time -= 900                                   # Current time - 15 min
-    alt_start_time = str(alt_start_time)                    # Convert back to string for server request
-    send_request_to_server(alt_start_time)                  # Send request to server
+    s_time = valid_stime()
+    s_time -= 900
 
+while True:
+    s_time += 300
 
+    url = 'http://127.0.0.1:8001/getdata?time=' + str(s_time)
 
-# write new s_time to text file
+    try:
+        response = urllib.request.urlopen(url)
 
-with open('start_time.txt', 'w') as file:
-    file.write("write new start time from last slice")
+    except urllib.error.HTTPError as e:
+        # Return code error (e.g. 404, 501, ...)
+        http_body = e.read().decode()
+        if error_msg_past(http_body):
+            pass
+        elif error_msg_future(http_body):
+            exit()
+        else:
+            print("Error: " + http_body)
+            exit()
+
+    except urllib.error.URLError as e:
+        # Not an HTTP-specific error (e.g. connection refused)
+        print('URLError: {}'.format(e.reason))
+        exit()
+    else:
+        # 200
+        write_to_json(response, s_time)
+        write_start_time_to_file(s_time, path)
